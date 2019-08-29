@@ -1,0 +1,169 @@
+---
+title: "Analysis of Philadelphia PennDOT vehicular crash data 2011-2017"
+output: 
+  html_document:
+    keep_md: yes
+
+        # github_document
+---
+
+### Background
+
+* Here we make use of data made available on www.opendataphilly.org derived from the annual crash data compiled by Penn DOT for Pennsylvania.
+  * https://www.opendataphilly.org/dataset/vehicular-crash-data
+
+### Loading and inspecting the data
+
+* Load CSV file into a data
+
+```{r}
+cdf <- read.csv('data/crash_data_collision_2011-2017.csv')
+```
+
+* Inspect size of data (number of rows and columns)
+
+```{r}
+dim(cdf)
+```
+
+* Always worth eyeballing bits of the data as a way to get to know the data.
+  * Can use `head()`, `tail()` and `summary()` functions for this.
+
+```{r}
+head(cdf,20)
+
+```
+
+
+* For instance:
+    * The `municipality`, `county` and `district` fields are numbers and not names as one might expect. So there must be a cross reference table somewhere that indicates the name of the district with code `6`, etc.
+    * `time_of_day` is an integer, e.g. `1515`, `0`, `742`, which we would initially assume is in 24 hour clock and relates to `3:15pm`, '12:00am` and `7:42am` respectively. Although a value of `0` might also be used to indicate an unknown time.
+    * `day_of_week` is also a number. So must question whether `1` means Monday or Sunday.
+    * Looking at the last column, `county_name` we see some empty cells.
+    
+    
+#### Listing columns
+
+```{r}
+colnames(cdf)
+```
+
+**Notice...**
+
+* Some of these names are more clear than others (e.g. what does `crn` field mean?).
+
+
+* There are groups of related columns, e.g.
+    * `driver_count_` is broken down into age bands
+        * `driver_count_16yr`
+        * `driver_count_17yr`
+        * `driver_count_18yr`
+        * `driver_count_19yr`
+        * `driver_count_20yr`
+        * `driver_count_50_64yr`
+        * `driver_count_65_74yr`
+        * `driver_count_75plus`
+        
+      but not continuous or equal ones. What does this suggest?
+      
+    * Injury types are broken down into categories
+        * `maj_inj_count`
+        * `mod_inj_count`
+        * `min_inj_count`
+        * `tot_inj_count`
+        
+* It is probably easier to look at these column names in alphabetical order.
+
+```{r}
+columns <- colnames(cdf)
+columns[order(columns)]
+```
+
+
+### Looking at the data dictionary/code book
+
+* Most datasets that have been made publicly available should have an accompanying code book or data dictionary to describe what each of the fields mean. How they were collected. What units they are measured in. What data type has been used to record them (e.g. text vs number vs date).
+
+
+* For this dataset there are a couple of versions:
+    * The Metadata reources on phila.gov site: 
+        * http://metadata.phila.gov/#home/datasetdetails/5543865420583086178c4eba/representationdetails/5c410c6431621f086214c7cd/
+    * The PennDot data dictionary linked from this page:
+        * http://pennshare.maps.arcgis.com/sharing/rest/content/items/ffe20c6c3c594389b275c6772a281bcd/data
+        
+* We've extracted the key information and put it into a CSV file, which means we can load it into a Pandas dataframe.
+
+```{r}
+code_book = read.csv('data/data_codebook.csv')
+```
+
+```{r}
+code_book
+```
+
+### Describing the data
+
+* The next step is to start to look at the values and distributions in various columns/fields
+
+
+* We can select a specific column or sets of columns using __INDEXING__. There are various ways to do this with a column name. Most often it is clearest to use the column name.
+
+```{r}
+cdf$fatal_count
+```
+
+* We might immediately be tempted to try and visualize this distribution with some kind of plot. And Pandas includes some nice easy ways to do this that we will learn about.
+
+
+```{r}
+plot(cdf$fatal_count, type = 'l')
+```
+
+* Compare the plot with this simple table, which tallies the number of rows that contain each number of fatalities.
+
+```{r}
+as.data.frame(table(cdf$fatal_count))
+```
+
+
+```{r}
+
+by_year <-  as.data.frame(table(cdf$crash_year))
+colnames(by_year) <- c('year','freq')
+
+with(by_year, barplot(freq, names=year, main='Philadelphia Crash Data'))
+```
+```{r}
+by_month <- aggregate(bicycle_count ~ crash_month + crash_year, cdf, sum)
+xlabels <- with(by_month,paste(crash_year, crash_month,sep='-'))
+
+with(by_month, barplot(bicycle_count, names=xlabels, las=2, cex.names=0.5)
+)
+```
+
+
+**Key point**
+
+* Look for patterns in your data!
+
+
+* These could be __TRENDS__ (an increase or descrease) or __CYCLES__ (repeated up and down patterns), etc.
+
+
+* These trends and cycles might be associated with other fields. Here is seems like we observe fewer bikes involved in crashes when the weather is colder.
+
+
+```{r}
+by_hour <- aggregate(bicycle_count ~ hour_of_day, cdf, sum)
+xlabels <- by_hour$hour_of_day
+
+with(by_hour, barplot(bicycle_count, names=xlabels, las=2, cex.names=0.5)
+)
+```
+* This plot shows bicycles involved in crashes grouped across all the data by the `hour_of_day`
+
+
+* Definitely seems like a _rush hour_ trend that might be worth investigating.
+
+
+* Notice also the `99` values. These probably indicate that the time of day was not recorded.
