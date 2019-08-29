@@ -1,0 +1,26 @@
+---
+title: "Analyzing the data"
+output: html_notebook
+---
+
+## Load the data
+
+```{r}
+
+df <- read.csv('data/crash_data_collision_2011-2017.csv')
+
+```
+
+
+* Inspect dimensions
+
+```{r}
+dim(df)
+```
+
+
+```{r}
+by_year <- as.data.frame(table(df$crash_year))
+
+with(by_year, barplot(Freq, xlabel = Var1))
+```
